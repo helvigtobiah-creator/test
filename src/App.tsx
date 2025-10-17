@@ -17,6 +17,7 @@ import { useKeyboard } from './hooks/useKeyboard';
 const STORAGE_KEY = 'grade-mixer-data';
 const CONFETTI_KEY = 'grade-mixer-confetti';
 const GROUP_COLORS_KEY = 'grade-mixer-group-colors';
+const TITLE_KEY = 'grade-mixer-title';
 
 interface Toast {
   id: string;
@@ -54,6 +55,11 @@ function App() {
     const stored = localStorage.getItem(GROUP_COLORS_KEY);
     return stored ? JSON.parse(stored) : {};
   });
+  const [title, setTitle] = useState(() => {
+    const stored = localStorage.getItem(TITLE_KEY);
+    return stored || 'Grade Mixer+ Visual Edition';
+  });
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
 
   const { theme, effectiveTheme, updateTheme, getBackgroundStyle, getColors } = useTheme();
   const { config: soundConfig, updateConfig: updateSoundConfig, toggleMute, playShuffleSound, playCompleteSound } = useSound();
@@ -89,6 +95,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem(GROUP_COLORS_KEY, JSON.stringify(groupColors));
   }, [groupColors]);
+
+  useEffect(() => {
+    localStorage.setItem(TITLE_KEY, title);
+  }, [title]);
 
   const addToast = (message: string, type: Toast['type']) => {
     const id = Date.now().toString();
@@ -258,12 +268,27 @@ function App() {
 
       <div className="container mx-auto px-4 py-6">
         <header className="mb-8">
-          <h1
-            className="text-4xl font-bold transition-colors duration-300 mb-6"
-            style={{ color: themeColors.text }}
-          >
-            Grade Mixer+ Visual Edition
-          </h1>
+          {isEditingTitle ? (
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={() => setIsEditingTitle(false)}
+              onKeyDown={(e) => e.key === 'Enter' && setIsEditingTitle(false)}
+              className="text-4xl font-bold transition-colors duration-300 mb-6 bg-transparent border-b-2 focus:outline-none w-full"
+              style={{ color: themeColors.text, borderColor: themeColors.accent }}
+              autoFocus
+            />
+          ) : (
+            <h1
+              className="text-4xl font-bold transition-colors duration-300 mb-6 cursor-pointer hover:opacity-70"
+              style={{ color: themeColors.text }}
+              onClick={() => setIsEditingTitle(true)}
+              title="Click to edit title"
+            >
+              {title}
+            </h1>
+          )}
 
           <div className="flex flex-wrap gap-3">
             <button
