@@ -11,14 +11,26 @@ import { CustomizationPanel } from './components/CustomizationPanel';
 import { ImportPanel } from './components/ImportPanel';
 import { ToastContainer } from './components/Toast';
 import { DEFAULT_CSV } from './defaultData';
+import { useTheme } from './hooks/useTheme';
+import { useSound } from './hooks/useSound';
+import { useHistory } from './hooks/useHistory';
+import { useAnalytics } from './hooks/useAnalytics';
+import { useKeyboard } from './hooks/useKeyboard';
 
 const STORAGE_KEY = 'grade-mixer-data';
+const CONFETTI_KEY = 'grade-mixer-confetti';
+const GROUP_COLORS_KEY = 'grade-mixer-group-colors';
 
 interface Toast {
   id: string;
   message: string;
   type: 'success' | 'warning' | 'error';
 }
+
+const colorPalette = [
+  '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
+  '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'
+];
 
 function App() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -38,6 +50,19 @@ function App() {
   const [activeTab, setActiveTab] = useState<'settings' | 'pairing' | 'customize' | 'import'>('settings');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [confettiEnabled, setConfettiEnabled] = useState(() => {
+    const stored = localStorage.getItem(CONFETTI_KEY);
+    return stored ? JSON.parse(stored) : true;
+  });
+  const [groupColors, setGroupColors] = useState<Record<number, string>>(() => {
+    const stored = localStorage.getItem(GROUP_COLORS_KEY);
+    return stored ? JSON.parse(stored) : {};
+  });
+
+  const { theme, effectiveTheme, updateTheme, getBackgroundStyle, getColors } = useTheme();
+  const { config: soundConfig, updateConfig: updateSoundConfig, toggleMute, playShuffleSound, playCompleteSound } = useSound();
+  const { history, addEntry, removeEntry, clearHistory } = useHistory();
+  const { trackGrouping, getPairFrequencies, resetAnalytics } = useAnalytics();
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -61,6 +86,14 @@ function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ students, settings }));
   }, [students, settings]);
 
+  useEffect(() => {
+    localStorage.setItem(CONFETTI_KEY, JSON.stringify(confettiEnabled));
+  }, [confettiEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem(GROUP_COLORS_KEY, JSON.stringify(groupColors));
+  }, [groupColors]);
+
   const addToast = (message: string, type: Toast['type']) => {
     const id = Date.now().toString();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -74,9 +107,14 @@ function App() {
   };
 
   const fireConfetti = () => {
-    const duration = 3000;
+    if (!confettiEnabled) return;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) return;
+
+    const duration = 2000;
     const animationEnd = Date.now() + duration;
-    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+    const defaults = { startVelocity: 25, spread: 360, ticks: 50, zIndex: 0 };
 
     const interval = setInterval(() => {
       const timeLeft = animationEnd - Date.now();
@@ -86,17 +124,19 @@ function App() {
         return;
       }
 
-      const particleCount = 50 * (timeLeft / duration);
+      const particleCount = 30 * (timeLeft / duration);
 
       confetti({
         ...defaults,
         particleCount,
         origin: { x: Math.random(), y: Math.random() - 0.2 }
       });
-    }, 250);
+    }, 200);
   };
 
   const handleRandomize = () => {
+    playShuffleSound();
+
     const result = createGroups(
       students,
       settings.numGroups,
@@ -106,9 +146,14 @@ function App() {
     );
 
     setGroups(result.groups);
+    addEntry(result.groups);
+    trackGrouping(result.groups);
 
     if (result.success) {
-      fireConfetti();
+      setTimeout(() => {
+        fireConfetti();
+        playCompleteSound();
+      }, 300);
       addToast('Groups created successfully!', 'success');
     } else {
       result.warnings.forEach(warning => {
@@ -159,10 +204,63 @@ function App() {
     setSettings(newSettings);
   };
 
+  const handleHistoryRestore = (entry: any) => {
+    setGroups(entry.groups);
+    addToast('Shuffle restored from history!', 'success');
+  };
+
+  const handleCopyLayout = () => {
+    if (groups.length === 0) {
+      addToast('No groups to copy!', 'warning');
+      return;
+    }
+
+    let text = 'Grade Mixer Groups\n\n';
+    groups.forEach(group => {
+      text += `${group.name}:\n`;
+      group.students.forEach(s => {
+        text += `  - ${s.first} ${s.last}\n`;
+      });
+      text += '\n';
+    });
+
+    navigator.clipboard.writeText(text).then(() => {
+      addToast('Layout copied to clipboard!', 'success');
+    });
+  };
+
+  const handleGroupColorChange = (groupIndex: number, color: string) => {
+    setGroupColors(prev => ({ ...prev, [groupIndex]: color }));
+  };
+
+  const handleGroupColorsRandomize = () => {
+    const newColors: Record<number, string> = {};
+    for (let i = 0; i < settings.numGroups; i++) {
+      newColors[i] = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+    }
+    setGroupColors(newColors);
+    addToast('Group colors randomized!', 'success');
+  };
+
+  useKeyboard({
+    onReroll: handleRandomize,
+    onSettings: () => {
+      setSidebarOpen(!sidebarOpen);
+      setActiveTab('settings');
+    },
+    onCopy: handleCopyLayout,
+    onMute: toggleMute
+  }, true);
+
+  const themeColors = getColors();
+  const densityClasses = theme.density === 'compact'
+    ? 'gap-3 md:gap-4'
+    : 'gap-6 md:gap-8';
+
   return (
     <div
-      className="min-h-screen transition-colors duration-300"
-      style={{ backgroundColor: settings.colors.background }}
+      className="min-h-screen transition-all duration-500"
+      style={theme.background.type !== 'color' ? getBackgroundStyle() : { backgroundColor: themeColors.background }}
     >
       <ToastContainer toasts={toasts} onRemove={removeToast} />
 
@@ -170,14 +268,18 @@ function App() {
         <header className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h1
-              className="text-4xl font-bold"
-              style={{ color: settings.colors.text }}
+              className="text-4xl font-bold transition-colors duration-300"
+              style={{ color: themeColors.text }}
             >
-              Grade Mixer
+              Grade Mixer+ Visual Edition
             </h1>
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 bg-white rounded-lg shadow-md hover:bg-gray-50 transition-colors"
+              className="lg:hidden p-2 rounded-lg shadow-md transition-colors"
+              style={{
+                backgroundColor: themeColors.card,
+                color: themeColors.text
+              }}
             >
               {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -189,7 +291,11 @@ function App() {
                 setActiveTab('import');
                 setSidebarOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-medium shadow-md transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium shadow-md transition-colors"
+              style={{
+                backgroundColor: themeColors.card,
+                color: themeColors.text
+              }}
             >
               <Upload size={18} />
               Import CSV
@@ -197,8 +303,8 @@ function App() {
             <button
               onClick={handleRandomize}
               disabled={students.length === 0}
-              className="flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: settings.colors.accent }}
+              className="flex items-center gap-2 px-6 py-2 text-white rounded-lg font-medium shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: themeColors.accent }}
             >
               <Shuffle size={18} />
               {groups.length > 0 ? 'Reroll' : 'Randomize'}
@@ -206,12 +312,16 @@ function App() {
             <button
               onClick={handleExport}
               disabled={groups.length === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-lg font-medium shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: themeColors.card,
+                color: themeColors.text
+              }}
             >
               <Download size={18} />
               Export CSV
             </button>
-            <div className="ml-auto text-sm" style={{ color: settings.colors.text }}>
+            <div className="ml-auto text-sm transition-colors duration-300" style={{ color: themeColors.text }}>
               <span className="font-medium">{students.length}</span> students loaded
             </div>
           </div>
@@ -221,10 +331,10 @@ function App() {
           <main className="flex-1">
             {groups.length === 0 ? (
               <div
-                className="text-center py-20 rounded-xl border-2 border-dashed"
+                className="text-center py-20 rounded-xl border-2 border-dashed transition-colors duration-300"
                 style={{
-                  borderColor: settings.colors.text + '40',
-                  color: settings.colors.text
+                  borderColor: themeColors.text + '40',
+                  color: themeColors.text
                 }}
               >
                 <Shuffle size={64} className="mx-auto mb-4 opacity-40" />
@@ -236,7 +346,7 @@ function App() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 ${densityClasses}`}>
                 {groups.map((group, idx) => (
                   <GroupCard
                     key={idx}
@@ -244,7 +354,12 @@ function App() {
                     students={group.students}
                     index={idx}
                     onNameChange={(name) => updateGroupName(idx, name)}
-                    colors={settings.colors}
+                    colors={{
+                      card: themeColors.card,
+                      text: themeColors.text,
+                      accent: groupColors[idx] || colorPalette[idx % colorPalette.length]
+                    }}
+                    density={theme.density}
                   />
                 ))}
               </div>
@@ -253,16 +368,18 @@ function App() {
 
           <aside
             className={`
-              fixed lg:static top-0 right-0 h-screen lg:h-auto w-80 bg-white shadow-xl lg:shadow-md rounded-lg p-6 overflow-y-auto z-40
-              transition-transform duration-300 lg:translate-x-0
+              fixed lg:static top-0 right-0 h-screen lg:h-auto w-80 shadow-xl lg:shadow-md rounded-lg p-6 overflow-y-auto z-40
+              transition-all duration-300 lg:translate-x-0
               ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}
             `}
+            style={{ backgroundColor: themeColors.card }}
           >
             <div className="flex lg:hidden justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Menu</h3>
+              <h3 className="text-lg font-semibold" style={{ color: themeColors.text }}>Menu</h3>
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="p-1 hover:bg-gray-100 rounded"
+                className="p-1 rounded transition-colors"
+                style={{ color: themeColors.text }}
               >
                 <X size={20} />
               </button>
@@ -273,9 +390,10 @@ function App() {
                 onClick={() => setActiveTab('settings')}
                 className={`px-4 py-2 rounded-lg font-medium text-left transition-colors ${
                   activeTab === 'settings'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    ? 'text-white'
+                    : ''
                 }`}
+                style={activeTab === 'settings' ? { backgroundColor: themeColors.accent } : { backgroundColor: effectiveTheme === 'dark' ? '#1e293b' : '#f3f4f6', color: themeColors.text }}
               >
                 Settings
               </button>
@@ -283,9 +401,10 @@ function App() {
                 onClick={() => setActiveTab('pairing')}
                 className={`px-4 py-2 rounded-lg font-medium text-left transition-colors ${
                   activeTab === 'pairing'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    ? 'text-white'
+                    : ''
                 }`}
+                style={activeTab === 'pairing' ? { backgroundColor: themeColors.accent } : { backgroundColor: effectiveTheme === 'dark' ? '#1e293b' : '#f3f4f6', color: themeColors.text }}
               >
                 Force Pairing
               </button>
@@ -293,9 +412,10 @@ function App() {
                 onClick={() => setActiveTab('customize')}
                 className={`px-4 py-2 rounded-lg font-medium text-left transition-colors ${
                   activeTab === 'customize'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    ? 'text-white'
+                    : ''
                 }`}
+                style={activeTab === 'customize' ? { backgroundColor: themeColors.accent } : { backgroundColor: effectiveTheme === 'dark' ? '#1e293b' : '#f3f4f6', color: themeColors.text }}
               >
                 Customization
               </button>
@@ -303,9 +423,10 @@ function App() {
                 onClick={() => setActiveTab('import')}
                 className={`px-4 py-2 rounded-lg font-medium text-left transition-colors ${
                   activeTab === 'import'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    ? 'text-white'
+                    : ''
                 }`}
+                style={activeTab === 'import' ? { backgroundColor: themeColors.accent } : { backgroundColor: effectiveTheme === 'dark' ? '#1e293b' : '#f3f4f6', color: themeColors.text }}
               >
                 Import
               </button>
@@ -317,6 +438,25 @@ function App() {
                   settings={settings}
                   onSettingsChange={setSettings}
                   onReset={handleReset}
+                  themeMode={theme.mode}
+                  density={theme.density}
+                  background={theme.background}
+                  onThemeModeChange={(mode) => updateTheme({ mode })}
+                  onDensityChange={(density) => updateTheme({ density })}
+                  onBackgroundChange={(background) => updateTheme({ background })}
+                  soundConfig={soundConfig}
+                  onSoundConfigChange={updateSoundConfig}
+                  history={history}
+                  onHistoryRestore={handleHistoryRestore}
+                  onHistoryDelete={removeEntry}
+                  onHistoryClear={clearHistory}
+                  pairFrequencies={getPairFrequencies()}
+                  onAnalyticsReset={resetAnalytics}
+                  groupColors={groupColors}
+                  onGroupColorChange={handleGroupColorChange}
+                  onGroupColorsRandomize={handleGroupColorsRandomize}
+                  confettiEnabled={confettiEnabled}
+                  onConfettiToggle={setConfettiEnabled}
                 />
               )}
               {activeTab === 'pairing' && (
