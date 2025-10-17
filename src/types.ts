@@ -1,17 +1,13 @@
-export type Gender = 'm' | 'f';
-export type Grade = 9 | 10 | 11 | 12;
-export type MixMode = 'balanced' | 'random';
-export type TimerMode = 'stopwatch' | 'countdown';
-export type SoundEvent = 'shuffleStart' | 'shuffleLoop' | 'shuffleEnd' | 'click' | 'error';
-export type SoundType = 'cardShuffle' | 'swish' | 'tick' | 'softDing' | 'chime' | 'pop' | 'none';
-
 export interface Student {
-  grade: Grade;
-  gender: Gender;
+  grade: number;
+  gender: 'm' | 'f';
   first: string;
   last: string;
   email: string;
-  full: string;
+}
+
+export interface GroupedStudent extends Student {
+  groupName: string;
 }
 
 export interface Group {
@@ -19,38 +15,28 @@ export interface Group {
   students: Student[];
 }
 
-export interface SoundSettings {
-  enabled: boolean;
-  volume: number;
-  events: Record<SoundEvent, SoundType>;
+export interface ForcePairing {
+  id: string;
+  students: Student[];
 }
 
-export interface TimerSettings {
-  enabled: boolean;
-  mode: TimerMode;
-  countdownMinutes: number;
-  countdownSeconds: number;
+export interface ForceAssignment {
+  id: string;
+  student: Student;
+  groupIndex: number;
 }
 
-export interface AppSettings {
+export interface CustomColors {
+  background: string;
+  text: string;
+  card: string;
+  accent: string;
+}
+
+export interface Settings {
   numGroups: number;
   groupNames: string[];
-  mixMode: MixMode;
-  miniAnimation: boolean;
-  timer: TimerSettings;
-  sound: SoundSettings;
-  seed: string;
-  darkMode: boolean;
-}
-
-export interface GroupingResult {
-  groups: Group[];
-  ok: boolean;
-  reasons: string[];
-}
-
-export interface HistoryEntry {
-  groups: Group[];
-  seed: string;
-  timestamp: number;
+  forcePairings: ForcePairing[];
+  forceAssignments: ForceAssignment[];
+  colors: CustomColors;
 }
