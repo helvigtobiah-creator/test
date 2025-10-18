@@ -32,35 +32,31 @@ export function createGroups(
     });
   }
 
-  const availableStudents = new Set(students);
-  const usedStudents = new Set<Student>();
+  const studentsPerGroup = Math.floor(students.length / numGroups);
+  const extraStudents = students.length % numGroups;
+
+  const allStudents = shuffleArray([...students]);
+  const availableStudents = [...allStudents];
 
   forceAssignments.forEach(assignment => {
-    if (assignment.groupIndex < numGroups && availableStudents.has(assignment.student)) {
-      groups[assignment.groupIndex].students.push(assignment.student);
-      availableStudents.delete(assignment.student);
-      usedStudents.add(assignment.student);
+    if (assignment.groupIndex < numGroups) {
+      const studentIndex = availableStudents.findIndex(s => s === assignment.student);
+      if (studentIndex !== -1) {
+        groups[assignment.groupIndex].students.push(assignment.student);
+        availableStudents.splice(studentIndex, 1);
+      }
     }
   });
 
   const pairingGroups = forcePairings.map(pairing => {
-    const validStudents = pairing.students.filter(s => availableStudents.has(s));
+    const validStudents = pairing.students.filter(s => availableStudents.includes(s));
     validStudents.forEach(s => {
-      availableStudents.delete(s);
-      usedStudents.add(s);
+      const idx = availableStudents.indexOf(s);
+      if (idx !== -1) {
+        availableStudents.splice(idx, 1);
+      }
     });
     return validStudents;
-  });
-
-  const byGrade: Record<number, Student[]> = { 9: [], 10: [], 11: [], 12: [] };
-  availableStudents.forEach(student => {
-    if (byGrade[student.grade]) {
-      byGrade[student.grade].push(student);
-    }
-  });
-
-  Object.keys(byGrade).forEach(grade => {
-    byGrade[parseInt(grade)] = shuffleArray(byGrade[parseInt(grade)]);
   });
 
   pairingGroups.forEach(pairingGroup => {
@@ -79,16 +75,21 @@ export function createGroups(
     groups[bestGroupIdx].students.push(...pairingGroup);
   });
 
-  for (let grade of [9, 10, 11, 12]) {
-    const gradeStudents = byGrade[grade];
+  let currentGroupIndex = 0;
+  while (availableStudents.length > 0) {
+    const targetSize = currentGroupIndex < extraStudents ? studentsPerGroup + 1 : studentsPerGroup;
 
-    for (let i = 0; i < gradeStudents.length; i++) {
-      const groupIdx = i % numGroups;
-      groups[groupIdx].students.push(gradeStudents[i]);
+    while (groups[currentGroupIndex].students.length < targetSize && availableStudents.length > 0) {
+      groups[currentGroupIndex].students.push(availableStudents.shift()!);
+    }
+
+    currentGroupIndex++;
+    if (currentGroupIndex >= numGroups) {
+      currentGroupIndex = 0;
     }
   }
 
-  groups.forEach((group, idx) => {
+  groups.forEach((group) => {
     const grades = new Set(group.students.map(s => s.grade));
     const genders = new Set(group.students.map(s => s.gender));
 

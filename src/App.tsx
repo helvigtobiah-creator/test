@@ -346,25 +346,22 @@ function App() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto pb-4">
-            <div className="flex gap-6" style={{ minWidth: 'min-content' }}>
-              {groups.map((group, idx) => (
-                <div key={idx} className="flex-shrink-0" style={{ width: '320px' }}>
-                  <GroupCard
-                    groupName={group.name}
-                    students={group.students}
-                    index={idx}
-                    onNameChange={(name) => updateGroupName(idx, name)}
-                    colors={{
-                      card: themeColors.card,
-                      text: themeColors.text,
-                      accent: groupColors[idx] || colorPalette[idx % colorPalette.length]
-                    }}
-                    density={theme.density}
-                  />
-                </div>
-              ))}
-            </div>
+          <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${groups.length}, 1fr)` }}>
+            {groups.map((group, idx) => (
+              <GroupCard
+                key={idx}
+                groupName={group.name}
+                students={group.students}
+                index={idx}
+                onNameChange={(name) => updateGroupName(idx, name)}
+                colors={{
+                  card: themeColors.card,
+                  text: themeColors.text,
+                  accent: groupColors[idx] || colorPalette[idx % colorPalette.length]
+                }}
+                density={theme.density}
+              />
+            ))}
           </div>
         )}
       </div>

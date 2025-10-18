@@ -22,23 +22,18 @@ export function StudentCard({ student, index }: StudentCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
-      className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 flex items-center gap-3"
+      className="bg-white rounded-lg p-2 shadow-sm border border-gray-200"
     >
-      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white font-semibold text-sm">
-        {initials}
+      <div className="font-medium text-gray-900 text-sm">
+        {student.first} {student.last}
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="font-medium text-gray-900 truncate">
-          {student.first} {student.last}
-        </div>
-        <div className="text-xs text-gray-500 flex items-center gap-2">
-          <span className={`${gradeColors[student.grade]} text-white px-2 py-0.5 rounded-full font-medium`}>
-            Grade {student.grade}
-          </span>
-          <span className="text-gray-400">
-            {student.gender === 'm' ? '♂' : '♀'}
-          </span>
-        </div>
+      <div className="text-xs text-gray-500 flex items-center gap-2 mt-1">
+        <span className={`${gradeColors[student.grade]} text-white px-2 py-0.5 rounded-full font-medium`}>
+          Grade {student.grade}
+        </span>
+        <span className="text-gray-400">
+          {student.gender === 'm' ? '♂' : '♀'}
+        </span>
       </div>
     </motion.div>
   );
