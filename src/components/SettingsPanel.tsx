@@ -38,6 +38,8 @@ interface SettingsPanelProps {
   onGroupColorsRandomize: () => void;
   confettiEnabled: boolean;
   onConfettiToggle: (enabled: boolean) => void;
+  animationSpeed: number;
+  onAnimationSpeedChange: (speed: number) => void;
 }
 
 export function SettingsPanel({
@@ -62,7 +64,9 @@ export function SettingsPanel({
   onGroupColorChange,
   onGroupColorsRandomize,
   confettiEnabled,
-  onConfettiToggle
+  onConfettiToggle,
+  animationSpeed,
+  onAnimationSpeedChange
 }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
 
@@ -164,6 +168,25 @@ export function SettingsPanel({
             </div>
 
             <ConfettiToggle enabled={confettiEnabled} onToggle={onConfettiToggle} />
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Animation Speed: {animationSpeed.toFixed(3)}s
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="0.2"
+                step="0.01"
+                value={animationSpeed}
+                onChange={(e) => onAnimationSpeedChange(parseFloat(e.target.value))}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>Instant</span>
+                <span>Slow</span>
+              </div>
+            </div>
 
             <button
               onClick={onReset}

@@ -37,18 +37,19 @@ export function createGroups(
 
   const allStudents = shuffleArray([...students]);
   const availableStudents = [...allStudents];
+  const forcedStudents: Array<{ student: Student; groupIndex: number; position?: number }> = [];
 
   forceAssignments.forEach(assignment => {
     if (assignment.groupIndex < numGroups) {
       const studentIndex = availableStudents.findIndex(s => s === assignment.student);
       if (studentIndex !== -1) {
-        groups[assignment.groupIndex].students.push(assignment.student);
+        forcedStudents.push({ student: assignment.student, groupIndex: assignment.groupIndex });
         availableStudents.splice(studentIndex, 1);
       }
     }
   });
 
-  const pairingGroups = forcePairings.map(pairing => {
+  const pairingGroups: Array<{ students: Student[]; groupIndex?: number }> = forcePairings.map(pairing => {
     const validStudents = pairing.students.filter(s => availableStudents.includes(s));
     validStudents.forEach(s => {
       const idx = availableStudents.indexOf(s);
@@ -56,11 +57,11 @@ export function createGroups(
         availableStudents.splice(idx, 1);
       }
     });
-    return validStudents;
+    return { students: validStudents };
   });
 
   pairingGroups.forEach(pairingGroup => {
-    if (pairingGroup.length === 0) return;
+    if (pairingGroup.students.length === 0) return;
 
     let bestGroupIdx = 0;
     let minSize = groups[0].students.length;
@@ -72,7 +73,10 @@ export function createGroups(
       }
     }
 
-    groups[bestGroupIdx].students.push(...pairingGroup);
+    pairingGroup.groupIndex = bestGroupIdx;
+    pairingGroup.students.forEach(s => {
+      forcedStudents.push({ student: s, groupIndex: bestGroupIdx });
+    });
   });
 
   let currentGroupIndex = 0;
@@ -88,6 +92,10 @@ export function createGroups(
       currentGroupIndex = 0;
     }
   }
+
+  forcedStudents.forEach(({ student, groupIndex }) => {
+    groups[groupIndex].students.push(student);
+  });
 
   groups.forEach((group) => {
     const grades = new Set(group.students.map(s => s.grade));

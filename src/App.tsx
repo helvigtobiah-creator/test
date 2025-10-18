@@ -18,6 +18,7 @@ const STORAGE_KEY = 'grade-mixer-data';
 const CONFETTI_KEY = 'grade-mixer-confetti';
 const GROUP_COLORS_KEY = 'grade-mixer-group-colors';
 const TITLE_KEY = 'grade-mixer-title';
+const ANIMATION_SPEED_KEY = 'grade-mixer-animation-speed';
 
 interface Toast {
   id: string;
@@ -47,6 +48,10 @@ function App() {
   });
   const [modalOpen, setModalOpen] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [animationSpeed, setAnimationSpeed] = useState(() => {
+    const stored = localStorage.getItem(ANIMATION_SPEED_KEY);
+    return stored ? parseFloat(stored) : 0.05;
+  });
   const [confettiEnabled, setConfettiEnabled] = useState(() => {
     const stored = localStorage.getItem(CONFETTI_KEY);
     return stored ? JSON.parse(stored) : true;
@@ -99,6 +104,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem(TITLE_KEY, title);
   }, [title]);
+
+  useEffect(() => {
+    localStorage.setItem(ANIMATION_SPEED_KEY, animationSpeed.toString());
+  }, [animationSpeed]);
 
   const addToast = (message: string, type: Toast['type']) => {
     const id = Date.now().toString();
@@ -360,6 +369,7 @@ function App() {
                   accent: groupColors[idx] || colorPalette[idx % colorPalette.length]
                 }}
                 density={theme.density}
+                animationSpeed={animationSpeed}
               />
             ))}
           </div>
@@ -391,6 +401,8 @@ function App() {
         onGroupColorsRandomize={handleGroupColorsRandomize}
         confettiEnabled={confettiEnabled}
         onConfettiToggle={setConfettiEnabled}
+        animationSpeed={animationSpeed}
+        onAnimationSpeedChange={setAnimationSpeed}
         students={students}
         onImport={handleImport}
         themeColors={themeColors}

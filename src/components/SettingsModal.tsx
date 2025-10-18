@@ -36,6 +36,8 @@ interface SettingsModalProps {
   onGroupColorsRandomize: () => void;
   confettiEnabled: boolean;
   onConfettiToggle: (enabled: boolean) => void;
+  animationSpeed: number;
+  onAnimationSpeedChange: (speed: number) => void;
   students: Student[];
   onImport: (students: Student[]) => void;
   themeColors: { card: string; text: string; accent: string; background: string };
@@ -69,6 +71,8 @@ export function SettingsModal({
   onGroupColorsRandomize,
   confettiEnabled,
   onConfettiToggle,
+  animationSpeed,
+  onAnimationSpeedChange,
   students,
   onImport,
   themeColors,
@@ -167,6 +171,8 @@ export function SettingsModal({
               onGroupColorsRandomize={onGroupColorsRandomize}
               confettiEnabled={confettiEnabled}
               onConfettiToggle={onConfettiToggle}
+              animationSpeed={animationSpeed}
+              onAnimationSpeedChange={onAnimationSpeedChange}
             />
           )}
           {activeTab === 'pairing' && (

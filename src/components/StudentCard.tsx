@@ -5,6 +5,7 @@ import { User } from 'lucide-react';
 interface StudentCardProps {
   student: Student;
   index: number;
+  animationSpeed?: number;
 }
 
 const gradeColors: Record<number, string> = {
@@ -14,14 +15,14 @@ const gradeColors: Record<number, string> = {
   12: 'bg-purple-500'
 };
 
-export function StudentCard({ student, index }: StudentCardProps) {
+export function StudentCard({ student, index, animationSpeed = 0.05 }: StudentCardProps) {
   const initials = `${student.first[0]}${student.last[0]}`;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.05 }}
+      transition={{ duration: 0.3, delay: index * animationSpeed }}
       className="bg-white rounded-lg p-2 shadow-sm border border-gray-200"
     >
       <div className="font-medium text-gray-900 text-sm">

@@ -11,9 +11,10 @@ interface GroupCardProps {
   onNameChange: (newName: string) => void;
   colors: { card: string; text: string; accent?: string };
   density?: 'compact' | 'spacious';
+  animationSpeed?: number;
 }
 
-export function GroupCard({ groupName, students, index, onNameChange, colors, density = 'spacious' }: GroupCardProps) {
+export function GroupCard({ groupName, students, index, onNameChange, colors, density = 'spacious', animationSpeed = 0.05 }: GroupCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(groupName);
 
@@ -62,7 +63,7 @@ export function GroupCard({ groupName, students, index, onNameChange, colors, de
       </div>
       <div className={`${paddingClass} ${density === 'compact' ? 'space-y-1' : 'space-y-2'}`}>
         {students.map((student, idx) => (
-          <StudentCard key={`${student.email}-${idx}`} student={student} index={idx} />
+          <StudentCard key={`${student.email}-${idx}`} student={student} index={idx} animationSpeed={animationSpeed} />
         ))}
         {students.length === 0 && (
           <div className="text-center py-8" style={{ color: colors.text, opacity: 0.4 }}>
